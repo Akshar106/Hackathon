@@ -1,18 +1,3 @@
-"""
-Train the DenoisingUNet on the SimulatedNoisyOffice dataset.
-
-Each training sample is a (noisy_image, clean_image) pair.
-The model learns to remove office noise (coffee stains, wrinkles,
-folded sheets, footprints) from scanned document images.
-
-Loss: MSE + SSIM combo — MSE drives pixel accuracy, SSIM preserves
-      structural sharpness of text edges.
-
-Usage:
-    python training/train_denoiser.py
-    python training/train_denoiser.py --epochs 50 --batch-size 4 --lr 1e-4
-"""
-
 import argparse
 import os
 import sys
@@ -34,11 +19,8 @@ MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
 NOISY_DIR = os.path.join(DATA_ROOT, "simulated_noisy_images_grayscale")
 CLEAN_DIR = os.path.join(DATA_ROOT, "clean_images_grayscale")
 
-# Noise type codes present in the filenames
 NOISE_TYPES = {"Noisec": "coffee", "Noisef": "folded", "Noisep": "footprints", "Noisew": "wrinkled"}
 
-
-# ── Dataset ───────────────────────────────────────────────────────────────────
 
 class NoisyOfficeDataset(Dataset):
     """
@@ -55,10 +37,9 @@ class NoisyOfficeDataset(Dataset):
 
         noisy_paths = sorted(Path(noisy_dir).glob("*.png"))
         for noisy_path in noisy_paths:
-            # FontLre_Noisec_TR.png  ->  FontLre + _TR
-            parts = noisy_path.stem.split("_")          # ['FontLre', 'Noisec', 'TR']
-            font_code = parts[0]                         # 'FontLre'
-            partition  = parts[2]                        # 'TR' | 'VA' | 'TE'
+            parts = noisy_path.stem.split("_")         
+            font_code = parts[0]                      
+            partition  = parts[2]                    
             clean_name = f"{font_code}_Clean_{partition}.png"
             clean_path = Path(clean_dir) / clean_name
             if clean_path.exists():
@@ -80,7 +61,6 @@ class NoisyOfficeDataset(Dataset):
         noisy = Image.open(noisy_path).convert("L")
         clean = Image.open(clean_path).convert("L")
 
-        # Random crop to a fixed patch size for batching
         noisy, clean = self._random_crop(noisy, clean)
 
         return self.to_tensor(noisy), self.to_tensor(clean)
@@ -98,9 +78,6 @@ class NoisyOfficeDataset(Dataset):
         y = random.randint(0, h - ps)
         box = (x, y, x + ps, y + ps)
         return noisy.crop(box), clean.crop(box)
-
-
-# ── SSIM loss (structural similarity) ────────────────────────────────────────
 
 def ssim_loss(pred: torch.Tensor, target: torch.Tensor, window_size: int = 11) -> torch.Tensor:
     """1 - SSIM, so minimising this maximises structural similarity."""
@@ -122,8 +99,6 @@ def combined_loss(pred, target, alpha: float = 0.8):
     """alpha * MSE + (1-alpha) * SSIM_loss."""
     return alpha * F.mse_loss(pred, target) + (1 - alpha) * ssim_loss(pred, target)
 
-
-# ── Training helpers ──────────────────────────────────────────────────────────
 
 def train_one_epoch(model, loader, optimizer, device):
     model.train()
@@ -149,8 +124,6 @@ def validate(model, loader, device):
         total_loss += combined_loss(pred, clean).item() * noisy.size(0)
     return total_loss / len(loader.dataset)
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 def parse_args():
     p = argparse.ArgumentParser()

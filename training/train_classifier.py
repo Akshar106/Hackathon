@@ -1,28 +1,3 @@
-"""
-Train the CharClassifier CNN on EMNIST (by_class split, 62 classes).
-
-Model  : VGG-style, 3 blocks, 64→128→256 channels (wider than before)
-Input  : 32×32 (fast, stable on BigRed200 with cudnn disabled)
-
-Training improvements that push 90% → 93-95%:
-  1. AdamW (weight_decay=1e-4) — better regularisation than plain Adam
-  2. Label smoothing=0.1       — stops overconfidence on 0/O, 1/l/I, 5/S
-  3. OneCycleLR scheduler      — warm-up + cosine decay, converges faster
-  4. MixUp (alpha=0.2)         — interpolates training pairs, harder task
-  5. RandomAffine (shear+translate) — more augmentation variety
-  6. Epochs 60                 — more training with the better scheduler
-
-BigRed200 note:
-  torch.backends.cudnn.enabled = False is REQUIRED.
-  The A100 with torch 2.2.0+cu118 segfaults on the first cuDNN Conv2d call.
-  With cudnn disabled, CUDA tensor ops still run on the GPU — just without
-  cuDNN's optimised kernels. At 32×32 input this completes in ~2-2.5 hours.
-
-Usage:
-    python training/train_classifier.py
-    python training/train_classifier.py --epochs 60 --batch-size 256 --lr 1e-3
-"""
-
 import argparse
 import os
 import sys
@@ -41,9 +16,6 @@ from ocr_service.model import CharClassifier
 NUM_CLASSES = 62
 DATA_DIR  = os.path.join(os.path.dirname(__file__), "..", "data")
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
-
-
-# ── Noise transforms ──────────────────────────────────────────────────────────
 
 class AddGaussianNoise:
     def __init__(self, lo: float = 0.05, hi: float = 0.15):
@@ -77,10 +49,7 @@ class RandomNoise:
         if np.random.rand() > self.p:
             return tensor
         return self.gaussian(tensor) if np.random.rand() < 0.5 else self.sp(tensor)
-
-
-# ── MixUp ─────────────────────────────────────────────────────────────────────
-
+    
 def mixup_batch(images: torch.Tensor, labels: torch.Tensor, alpha: float = 0.2):
     lam = float(np.random.beta(alpha, alpha))
     idx = torch.randperm(images.size(0), device=images.device)
@@ -91,8 +60,6 @@ def mixup_batch(images: torch.Tensor, labels: torch.Tensor, alpha: float = 0.2):
 def mixup_criterion(criterion, pred, y_a, y_b, lam):
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
 
-
-# ── Data loaders ──────────────────────────────────────────────────────────────
 
 def build_loaders(batch_size: int):
     train_tf = T.Compose([
@@ -126,8 +93,6 @@ def build_loaders(batch_size: int):
     )
     return train_loader, val_loader
 
-
-# ── Training helpers ──────────────────────────────────────────────────────────
 
 def train_one_epoch(model, loader, criterion, optimizer, scheduler, device):
     model.train()
@@ -191,9 +156,6 @@ def evaluate_per_noise(model, val_ds, device, n_samples: int = 2000):
         results[name] = acc
     return results
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
-
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--epochs",     type=int,   default=60)
@@ -204,9 +166,6 @@ def parse_args():
 
 
 def main():
-    # REQUIRED on BigRed200 — torch 2.2.0+cu118 segfaults on the first
-    # cuDNN Conv2d call. Disabling cuDNN falls back to native CUDA ops
-    # which are stable. BatchNorm2d + cuDNN is the specific crash trigger.
     torch.backends.cudnn.enabled = False
 
     args = parse_args()

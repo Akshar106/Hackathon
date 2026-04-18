@@ -1,17 +1,3 @@
-"""
-Standalone evaluation script — run after training to produce the metrics
-reported in the README (grad requirement).
-
-Reports:
-  1. CharClassifier — overall val accuracy on clean EMNIST
-  2. CharClassifier — per-noise accuracy (Gaussian, salt-and-pepper)
-  3. DenoisingUNet  — PSNR and SSIM on SimulatedNoisyOffice test split
-
-Usage:
-    python training/evaluate.py
-    python training/evaluate.py --n-samples 5000
-"""
-
 import argparse
 import os
 import sys
@@ -37,7 +23,7 @@ CLEAN_DIR  = os.path.join(DATA_ROOT, "clean_images_grayscale")
 NUM_CLASSES = 62
 
 
-# ── Noise transforms (mirrored from train_classifier) ────────────────────────
+# Noise transforms (mirrored from train_classifier) 
 
 class AddGaussianNoise:
     def __init__(self, sigma: float = 0.10):
@@ -59,7 +45,7 @@ class AddSaltAndPepperNoise:
         return out
 
 
-# ── PSNR / SSIM helpers ───────────────────────────────────────────────────────
+# PSNR / SSIM helpers
 
 def psnr(pred: torch.Tensor, target: torch.Tensor) -> float:
     mse = F.mse_loss(pred, target).item()
@@ -80,7 +66,7 @@ def ssim_score(pred: torch.Tensor, target: torch.Tensor, window_size: int = 11) 
     return ssim_map.mean().item()
 
 
-# ── Section 1: CharClassifier ─────────────────────────────────────────────────
+# Section 1: CharClassifier
 
 def eval_classifier(device: str, n_samples: int):
     weights = os.path.join(MODEL_DIR, "char_classifier.pth")
@@ -131,7 +117,7 @@ def eval_classifier(device: str, n_samples: int):
         print("  ⚠ Accuracy below 95% target.")
 
 
-# ── Section 2: DenoisingUNet ──────────────────────────────────────────────────
+# Section 2: DenoisingUNet
 
 def eval_denoiser(device: str):
     weights = os.path.join(MODEL_DIR, "denoiser.pth")
@@ -193,8 +179,6 @@ def eval_denoiser(device: str):
         label = noise_names.get(code, code)
         print(f"    {label:20s}  PSNR={np.mean(vals['psnr']):.2f} dB  SSIM={np.mean(vals['ssim']):.4f}")
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 def parse_args():
     p = argparse.ArgumentParser()

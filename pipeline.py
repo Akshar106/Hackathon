@@ -1,23 +1,3 @@
-"""
-End-to-end pipeline orchestrator.
-
-Runs the full pipeline on a document image:
-  1. OCR microservice  — denoise + segment + classify characters
-  2. Compression service — adaptive Huffman encode the OCR text
-
-Also supports a benchmarking mode that measures per-stage latency.
-
-Usage:
-    # Single image, services already running
-    python pipeline.py --image path/to/scan.png
-
-    # Direct mode (no running services needed — loads models in-process)
-    python pipeline.py --image path/to/scan.png --direct
-
-    # Benchmark on a directory of images
-    python pipeline.py --benchmark --image-dir path/to/images/ --direct
-"""
-
 import argparse
 import json
 import os
@@ -25,19 +5,13 @@ import sys
 import time
 from pathlib import Path
 
-# ── Service URLs ──────────────────────────────────────────────────────────────
-
 OCR_URL         = os.environ.get("OCR_URL",         "http://localhost:8000")
 COMPRESS_URL    = os.environ.get("COMPRESS_URL",    "http://localhost:8001")
-
-
-# ── HTTP-based pipeline ───────────────────────────────────────────────────────
 
 def run_via_services(image_path: str, denoise: bool = True) -> dict:
     """Call both microservices over HTTP."""
     import requests
 
-    # Detect MIME type from extension
     ext = Path(image_path).suffix.lower()
     mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
             "tiff": "image/tiff", "bmp": "image/bmp"}.get(ext.lstrip("."), "image/png")
@@ -87,8 +61,6 @@ def run_via_services(image_path: str, denoise: bool = True) -> dict:
         },
     }
 
-
-# ── Direct (in-process) pipeline ─────────────────────────────────────────────
 
 def _ensure_models_loaded(device: str = "cpu"):
     from ocr_service.predict    import load_classifier, _classifier
@@ -146,9 +118,6 @@ def run_direct(image_path: str, denoise: bool = True, device: str = "cpu") -> di
         },
     }
 
-
-# ── Benchmarking ──────────────────────────────────────────────────────────────
-
 def benchmark(image_dir: str, direct: bool = True, device: str = "cpu") -> dict:
     """Run pipeline on all PNG/JPEG images in a directory and aggregate metrics."""
     image_paths = sorted(
@@ -194,8 +163,6 @@ def benchmark(image_dir: str, direct: bool = True, device: str = "cpu") -> dict:
         "per_image": results,
     }
 
-
-# ── CLI ───────────────────────────────────────────────────────────────────────
 
 def parse_args():
     p = argparse.ArgumentParser(description="OCR + Compression pipeline")

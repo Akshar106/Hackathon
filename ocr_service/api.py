@@ -1,15 +1,3 @@
-"""
-OCR microservice — FastAPI
-
-Endpoints:
-  POST /ocr          — run full OCR pipeline on an uploaded image
-  POST /ocr/denoise  — return the denoised image (JPEG) for inspection
-  GET  /health       — liveness check
-
-Start with:
-    uvicorn ocr_service.api:app --port 8000 --reload
-"""
-
 import io
 import os
 import time
@@ -22,15 +10,11 @@ from PIL import Image
 from ocr_service.predict import load_classifier, predict_image
 from ocr_service.preprocess import load_denoiser, denoise_array, load_grayscale
 
-# ── Model paths ───────────────────────────────────────────────────────────────
-
 _BASE = Path(__file__).resolve().parent.parent
 CLASSIFIER_WEIGHTS = str(_BASE / "models" / "char_classifier.pth")
 DENOISER_WEIGHTS   = str(_BASE / "models" / "denoiser.pth")
 
 DEVICE = os.environ.get("OCR_DEVICE", "cpu")
-
-# ── App setup ─────────────────────────────────────────────────────────────────
 
 app = FastAPI(title="OCR Service", version="1.0")
 
@@ -43,9 +27,6 @@ async def _load_models():
 
     if Path(DENOISER_WEIGHTS).exists():
         load_denoiser(DENOISER_WEIGHTS, device=DEVICE)
-
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 async def health():

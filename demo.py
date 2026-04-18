@@ -1,18 +1,3 @@
-"""
-Hackathon Demo — 2-Stage Neural Compression Pipeline
-======================================================
-Streamlit UI showing the full pipeline:
-  Image → OCR (CNN) → Compressed bitstream → Decompressed text recovery
-
-Run:
-    # Start both microservices first (two separate terminals):
-    uvicorn ocr_service.api:app --port 8000
-    uvicorn compression_service.api:app --port 8001
-
-    # Then launch the demo:
-    streamlit run demo.py
-"""
-
 import io
 import os
 import time
@@ -22,13 +7,10 @@ import requests
 import streamlit as st
 from PIL import Image
 
-# ── Config ────────────────────────────────────────────────────────────────────
 
 OCR_URL      = os.environ.get("OCR_URL",      "http://localhost:8000")
 COMPRESS_URL = os.environ.get("COMPRESS_URL", "http://localhost:8001")
 TEST_IMG_DIR = Path(__file__).parent / "test_images"
-
-# ── Page setup ────────────────────────────────────────────────────────────────
 
 st.set_page_config(
     page_title="Neural Compression Pipeline",
@@ -36,7 +18,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# ── Custom CSS ────────────────────────────────────────────────────────────────
 
 st.markdown("""
 <style>
@@ -85,8 +66,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def check_service(url: str) -> bool:
     try:
@@ -140,16 +119,11 @@ def get_test_images():
         if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".bmp", ".tiff")
     ])
 
-
-# ── Header ────────────────────────────────────────────────────────────────────
-
-st.title("🗜️ 2-Stage Neural Compression Pipeline")
+st.title("2-Stage Neural Compression Pipeline")
 st.markdown(
     "**Stage 1 → OCR** (ResVGG CNN on EMNIST, 62 classes) &nbsp;|&nbsp; "
     "**Stage 2 → Adaptive Huffman Encoding** (custom, no zlib)"
 )
-
-# ── Service status banner ─────────────────────────────────────────────────────
 
 with st.container():
     c1, c2 = st.columns(2)
@@ -177,15 +151,13 @@ with st.container():
 
 st.divider()
 
-# ── Sidebar settings ──────────────────────────────────────────────────────────
-
 with st.sidebar:
     st.header("⚙️ Settings")
     denoise_enabled = st.toggle("Enable Denoising (UNet)", value=True)
     st.caption("Applies DenoisingUNet before OCR. Helps with noisy scans.")
 
     st.divider()
-    st.header("🖼️ Example Images")
+    st.header("Example Images")
     test_imgs = get_test_images()
     if test_imgs:
         selected_example = st.selectbox(
@@ -214,9 +186,9 @@ with st.sidebar:
 - No zlib / external libs
 """)
 
-# ── Pipeline ──────────────────────────────────────────────────────────────────
+# ── Pipeline 
 
-# ── Step 0: Image input ───────────────────────────────────────────────────────
+# ── Step 0: Image input 
 
 st.subheader("📥 Step 1 — Upload Image")
 
@@ -254,12 +226,10 @@ if uploaded_file is not None:
         if not (ocr_ok and comp_ok):
             st.caption("Start both services to enable.")
 
-    # ── Run pipeline ──────────────────────────────────────────────────────────
-
     if run_pipeline:
         st.divider()
 
-        # ── Stage 1: OCR ──────────────────────────────────────────────────────
+        # ── Stage 1: OCR 
 
         st.subheader("🔍 Stage 1 — OCR (CNN Character Recognition)")
 
@@ -291,14 +261,14 @@ if uploaded_file is not None:
                 )
                 st.stop()
 
-            # ── Stage 1 → Stage 2 arrow ───────────────────────────────────────
+            # ── Stage 1 -> Stage 2 arrow 
 
             st.markdown(
                 '<div class="pipeline-arrow">⬇️ OCR text → Compression</div>',
                 unsafe_allow_html=True,
             )
 
-            # ── Stage 2: Compression ──────────────────────────────────────────
+            # ── Stage 2: Compression
 
             st.subheader("🗜️ Stage 2 — Adaptive Huffman Compression")
 
@@ -334,14 +304,14 @@ if uploaded_file is not None:
                     f"({comp_result['compressed_bytes']:,} bytes packed)"
                 )
 
-                # ── Stage 2 → Recovery arrow ──────────────────────────────────
+                # ── Stage 2 -> Recovery arrow 
 
                 st.markdown(
                     '<div class="pipeline-arrow">⬇️ Bitstream → Decompression</div>',
                     unsafe_allow_html=True,
                 )
 
-                # ── Stage 3: Decompression ────────────────────────────────────
+                # ── Stage 3: Decompression
 
                 st.subheader("♻️ Stage 3 — Decompression & Recovery Verification")
 
@@ -394,7 +364,7 @@ if uploaded_file is not None:
                             f"{decomp_result['latency_ms']:.1f} ms",
                         )
 
-                    # ── Full pipeline summary ─────────────────────────────────
+                    # ── Full pipeline summary 
 
                     st.divider()
                     st.subheader("📊 Full Pipeline Summary")
@@ -427,9 +397,8 @@ if uploaded_file is not None:
 """)
 
 else:
-    st.info("⬆️ Upload an image or choose an example from the sidebar to get started.")
+    st.info(" Upload an image or choose an example from the sidebar to get started.")
 
-# ── Footer ────────────────────────────────────────────────────────────────────
 
 st.divider()
 st.caption(

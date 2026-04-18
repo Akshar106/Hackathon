@@ -1,15 +1,3 @@
-"""
-Preprocessing pipeline for scanned document images.
-
-Steps:
-  1. Load image and convert to grayscale
-  2. Optionally run DenoisingUNet to remove office noise
-  3. Binarize with Otsu thresholding
-  4. Detect text lines via horizontal projection profile
-  5. Segment each line into individual character bounding boxes
-  6. Resize each character patch to 32x32 for CharClassifier
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -37,7 +25,6 @@ def load_grayscale(image_source) -> np.ndarray:
 
 def otsu_threshold(gray: np.ndarray) -> np.ndarray:
     """Return binary image (255=foreground/text, 0=background) using Otsu's method."""
-    # Compute histogram
     hist, bins = np.histogram(gray.ravel(), bins=256, range=(0, 256))
     total = gray.size
 
@@ -60,7 +47,6 @@ def otsu_threshold(gray: np.ndarray) -> np.ndarray:
             best_var = var_between
             best_thresh = t
 
-    # Invert: dark text on white background → text pixels become 255
     binary = np.where(gray <= best_thresh, 255, 0).astype(np.uint8)
     return binary
 
@@ -70,7 +56,7 @@ def find_line_rows(binary: np.ndarray, min_height: int = 12) -> List[Tuple[int, 
     Use horizontal projection profile to find text line row ranges.
     Returns list of (row_start, row_end) tuples.
     """
-    projection = binary.sum(axis=1)  # sum of foreground pixels per row
+    projection = binary.sum(axis=1) 
     in_line = False
     lines = []
     start = 0
@@ -147,9 +133,6 @@ def resize_patch(patch: np.ndarray, size: int = 32) -> np.ndarray:
     canvas.paste(img, (x_off, y_off))
     return np.array(canvas, dtype=np.uint8)
 
-
-# ── Denoiser integration ──────────────────────────────────────────────────────
-
 _denoiser: Optional[DenoisingUNet] = None
 _denoiser_device: str = "cpu"
 
@@ -171,20 +154,18 @@ def denoise_array(gray: np.ndarray) -> np.ndarray:
     Returns denoised uint8 grayscale array (same shape).
     """
     if _denoiser is None:
-        return gray  # passthrough if denoiser not loaded
+        return gray 
 
     to_tensor = T.ToTensor()
     img_pil = Image.fromarray(gray, mode="L")
-    x = to_tensor(img_pil).unsqueeze(0).to(_denoiser_device)  # (1,1,H,W)
+    x = to_tensor(img_pil).unsqueeze(0).to(_denoiser_device) 
 
     with torch.no_grad():
-        out = _denoiser(x)  # (1,1,H,W) in [0,1]
+        out = _denoiser(x) 
 
     out_np = (out.squeeze().cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
     return out_np
 
-
-# ── Full preprocessing pipeline ───────────────────────────────────────────────
 
 def preprocess_image(
     image_source,
@@ -201,8 +182,6 @@ def preprocess_image(
     if denoise:
         gray = denoise_array(gray)
 
-    # Median filter removes isolated salt-and-pepper noise pixels before
-    # thresholding — prevents the projection profile from seeing noise as text
     gray_pil = Image.fromarray(gray, mode="L")
     gray_pil = gray_pil.filter(ImageFilter.MedianFilter(size=3))
     gray = np.array(gray_pil, dtype=np.uint8)

@@ -1,46 +1,10 @@
-"""
-Adaptive Huffman Encoding — FGK-inspired online algorithm.
-
-How it works (true adaptive / no pre-scan):
-  1. Both encoder and decoder start with an empty frequency table.
-  2. For each incoming symbol:
-       - If the symbol has been seen before → output its current Huffman code.
-       - If it is new → output the NYT (Not-Yet-Transmitted) escape code
-         followed by the raw 8-bit value.
-  3. After encoding/decoding each symbol the frequency table is incremented
-     and the Huffman tree is rebuilt from the updated counts.
-  4. Because encoder and decoder apply the same deterministic update rule
-     they maintain identical trees throughout — no frequency table needs
-     to be transmitted alongside the compressed data.
-
-This satisfies the "adaptive Huffman" requirement:
-  • Online / streaming — processes one symbol at a time.
-  • No two-pass pre-scan of the input.
-  • Code lengths adapt as the symbol distribution is learned.
-
-NYT sentinel  : symbol value 256 (outside the 0-255 byte range).
-Tree building : standard min-heap Huffman with deterministic tie-breaking
-                (lower symbol value wins) so encoder and decoder always
-                produce bit-for-bit identical trees for the same freq table.
-
-No zlib, bz2, or any external compression library is used.
-
-Public API:
-    compress(data: bytes)  -> dict
-    decompress(payload: dict) -> bytes
-"""
-
 from __future__ import annotations
 
 import heapq
 import math
 from typing import Dict, Optional, Tuple
 
-# ── NYT sentinel ──────────────────────────────────────────────────────────────
-_NYT = 256          # "Not Yet Transmitted" — never a real byte value
-
-
-# ── Huffman tree node ─────────────────────────────────────────────────────────
+_NYT = 256     
 
 class _HNode:
     __slots__ = ("freq", "symbol", "left", "right")
@@ -53,7 +17,7 @@ class _HNode:
         right:  "Optional[_HNode]" = None,
     ):
         self.freq   = freq
-        self.symbol = symbol   # int (0-256) for leaves, None for internal nodes
+        self.symbol = symbol  
         self.left   = left
         self.right  = right
 
@@ -96,9 +60,6 @@ def _build_codebook(root: _HNode) -> Dict[int, str]:
     _dfs(root, "")
     return book
 
-
-# ── Core adaptive encode / decode ─────────────────────────────────────────────
-
 def _encode_adaptive(data: bytes) -> str:
     """
     Adaptive Huffman encode.
@@ -118,10 +79,8 @@ def _encode_adaptive(data: bytes) -> str:
 
     for byte in data:
         if not freqs:
-            # No tree yet — send raw 8-bit value
             parts.append(format(byte, "08b"))
         else:
-            # Build tree from current state (NYT has fixed weight 1)
             tree_freqs = dict(freqs)
             tree_freqs[_NYT] = 1
             codebook = _build_codebook(_build_tree(tree_freqs))
@@ -129,11 +88,9 @@ def _encode_adaptive(data: bytes) -> str:
             if byte in freqs:
                 parts.append(codebook[byte])
             else:
-                # Escape via NYT + raw symbol
                 parts.append(codebook[_NYT])
                 parts.append(format(byte, "08b"))
 
-        # Update shared state
         freqs[byte] = freqs.get(byte, 0) + 1
 
     return "".join(parts)
@@ -180,9 +137,6 @@ def _decode_adaptive(bitstring: str, original_length: int) -> bytes:
 
     return bytes(result)
 
-
-# ── Metrics helper ────────────────────────────────────────────────────────────
-
 def _compute_metrics(data: bytes, bitstring: str) -> dict:
     from collections import Counter
     import base64
@@ -215,9 +169,6 @@ def _compute_metrics(data: bytes, bitstring: str) -> dict:
         "avg_bits_per_symbol":     round(avg_bits, 4),
         "encoding_efficiency":     round(min(efficiency, 1.0), 4),
     }
-
-
-# ── High-level compress / decompress ─────────────────────────────────────────
 
 def compress(data: bytes) -> dict:
     """
@@ -266,7 +217,7 @@ def compress(data: bytes) -> dict:
         "packed_b64":      base64.b64encode(bytes(packed)).decode(),
         "pad_bits":        pad,
         "original_length": len(data),
-        "freqs":           dict(Counter(data)),  # post-hoc, for API compat
+        "freqs":           dict(Counter(data)),
         "stats":           stats,
     }
 

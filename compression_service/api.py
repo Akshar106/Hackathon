@@ -1,15 +1,3 @@
-"""
-Compression microservice — FastAPI
-
-Endpoints:
-  POST /compress    — adaptive Huffman compress uploaded text or binary file
-  POST /decompress  — decompress a previously compressed payload
-  GET  /health      — liveness check
-
-Start with:
-    uvicorn compression_service.api:app --port 8001 --reload
-"""
-
 import io
 import json
 import time
@@ -22,17 +10,12 @@ from compression_service.huffman import compress, decompress
 
 app = FastAPI(title="Compression Service", version="1.0")
 
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
 class DecompressRequest(BaseModel):
     bitstring: str
     original_length: int
-    freqs: dict = {}     # not used by adaptive decoder; kept for API compatibility
+    freqs: dict = {}    
     pad_bits: int = 0
 
-
-# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")
 async def health():
@@ -62,7 +45,6 @@ async def compress_file(file: UploadFile = File(...)):
         "avg_bits_per_symbol": payload["stats"]["avg_bits_per_symbol"],
         "encoding_efficiency": payload["stats"]["encoding_efficiency"],
         "latency_ms": round(latency_ms, 2),
-        # Payload fields needed for decompression
         "bitstring": payload["bitstring"],
         "packed_b64": payload["packed_b64"],
         "pad_bits": payload["pad_bits"],

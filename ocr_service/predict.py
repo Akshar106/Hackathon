@@ -1,10 +1,3 @@
-"""
-Inference logic for the OCR pipeline.
-
-Loads CharClassifier weights, runs character patches through the model,
-and maps predicted indices back to the EMNIST character set.
-"""
-
 import os
 import sys
 from typing import List, Optional
@@ -17,7 +10,6 @@ from PIL import Image
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from ocr_service.model import CharClassifier
 
-# EMNIST byclass label mapping: 0-9 digits, 10-35 uppercase A-Z, 36-61 lowercase a-z
 _LABELS = (
     [str(d) for d in range(10)]
     + [chr(c) for c in range(ord("A"), ord("Z") + 1)]
@@ -50,11 +42,10 @@ def predict_patches(patches: List[np.ndarray], batch_size: int = 64) -> List[str
     if not patches:
         return []
 
-    # Convert all patches to tensors
     tensors = []
     for patch in patches:
         img = Image.fromarray(patch, mode="L")
-        tensors.append(_to_tensor(img))  # (1, 32, 32)
+        tensors.append(_to_tensor(img))  
 
     results = []
     for i in range(0, len(tensors), batch_size):
