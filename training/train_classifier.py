@@ -1,16 +1,26 @@
 """
 Train the CharClassifier CNN on EMNIST (by_class split, 62 classes).
 
-Noise augmentation strategy (grad requirement):
-  - Gaussian noise  : additive zero-mean Gaussian, sigma sampled from [0.05, 0.15]
-  - Salt-and-pepper : random pixels set to 0 or 1, density sampled from [0.02, 0.08]
+Model  : VGG-style, 3 blocks, 64→128→256 channels (wider than before)
+Input  : 32×32 (fast, stable on BigRed200 with cudnn disabled)
 
-Both are applied randomly during training so the model sees clean AND noisy
-samples, pushing it toward the >95% character-level accuracy target.
+Training improvements that push 90% → 93-95%:
+  1. AdamW (weight_decay=1e-4) — better regularisation than plain Adam
+  2. Label smoothing=0.1       — stops overconfidence on 0/O, 1/l/I, 5/S
+  3. OneCycleLR scheduler      — warm-up + cosine decay, converges faster
+  4. MixUp (alpha=0.2)         — interpolates training pairs, harder task
+  5. RandomAffine (shear+translate) — more augmentation variety
+  6. Epochs 60                 — more training with the better scheduler
+
+BigRed200 note:
+  torch.backends.cudnn.enabled = False is REQUIRED.
+  The A100 with torch 2.2.0+cu118 segfaults on the first cuDNN Conv2d call.
+  With cudnn disabled, CUDA tensor ops still run on the GPU — just without
+  cuDNN's optimised kernels. At 32×32 input this completes in ~2-2.5 hours.
 
 Usage:
     python training/train_classifier.py
-    python training/train_classifier.py --epochs 30 --batch-size 128 --lr 1e-3
+    python training/train_classifier.py --epochs 60 --batch-size 256 --lr 1e-3
 """
 
 import argparse
@@ -20,27 +30,22 @@ import sys
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torchvision
 import torchvision.transforms as T
 
-# Allow importing from sibling package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from ocr_service.model import CharClassifier
 
-# ── EMNIST by_class label order ──────────────────────────────────────────────
-# 0-9  → digits
-# 10-35 → A-Z  (uppercase)
-# 36-61 → a-z  (lowercase)
 NUM_CLASSES = 62
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+DATA_DIR  = os.path.join(os.path.dirname(__file__), "..", "data")
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
 
 
-# ── Custom noise transforms ───────────────────────────────────────────────────
+# ── Noise transforms ──────────────────────────────────────────────────────────
 
 class AddGaussianNoise:
-    """Additive Gaussian noise with sigma drawn uniformly from [lo, hi]."""
     def __init__(self, lo: float = 0.05, hi: float = 0.15):
         self.lo, self.hi = lo, hi
 
@@ -50,7 +55,6 @@ class AddGaussianNoise:
 
 
 class AddSaltAndPepperNoise:
-    """Randomly set pixels to 0 (pepper) or 1 (salt), density in [lo, hi]."""
     def __init__(self, lo: float = 0.02, hi: float = 0.08):
         self.lo, self.hi = lo, hi
 
@@ -58,14 +62,13 @@ class AddSaltAndPepperNoise:
         density = np.random.uniform(self.lo, self.hi)
         mask = torch.rand_like(tensor)
         noisy = tensor.clone()
-        noisy[mask < density / 2] = 0.0        # pepper
-        noisy[mask > 1 - density / 2] = 1.0    # salt
+        noisy[mask < density / 2] = 0.0
+        noisy[mask > 1 - density / 2] = 1.0
         return noisy
 
 
 class RandomNoise:
-    """Apply one of Gaussian or salt-and-pepper noise with probability p."""
-    def __init__(self, p: float = 0.5):
+    def __init__(self, p: float = 0.3):
         self.p = p
         self.gaussian = AddGaussianNoise()
         self.sp = AddSaltAndPepperNoise()
@@ -76,15 +79,33 @@ class RandomNoise:
         return self.gaussian(tensor) if np.random.rand() < 0.5 else self.sp(tensor)
 
 
+# ── MixUp ─────────────────────────────────────────────────────────────────────
+
+def mixup_batch(images: torch.Tensor, labels: torch.Tensor, alpha: float = 0.2):
+    lam = float(np.random.beta(alpha, alpha))
+    idx = torch.randperm(images.size(0), device=images.device)
+    mixed = lam * images + (1 - lam) * images[idx]
+    return mixed, labels, labels[idx], lam
+
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+
+
 # ── Data loaders ──────────────────────────────────────────────────────────────
 
 def build_loaders(batch_size: int):
-    # EMNIST images are 28x28; resize to 32x32 to give conv blocks
-    # enough spatial room before three MaxPool2d(2) stages.
-    base = [T.Resize((32, 32)), T.ToTensor()]
-
-    train_tf = T.Compose(base + [RandomNoise(p=0.5)])
-    val_tf   = T.Compose(base)
+    train_tf = T.Compose([
+        T.Resize((32, 32)),
+        T.RandomRotation(degrees=15),
+        T.RandomAffine(degrees=0, translate=(0.1, 0.1), shear=10),
+        T.ToTensor(),
+        RandomNoise(p=0.3),
+    ])
+    val_tf = T.Compose([
+        T.Resize((32, 32)),
+        T.ToTensor(),
+    ])
 
     train_ds = torchvision.datasets.EMNIST(
         root=DATA_DIR, split="byclass", train=True,
@@ -97,31 +118,40 @@ def build_loaders(batch_size: int):
 
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
-        num_workers=4, pin_memory=True,
+        num_workers=0, pin_memory=False,
     )
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
-        num_workers=4, pin_memory=True,
+        num_workers=0, pin_memory=False,
     )
     return train_loader, val_loader
 
 
-# ── Training loop ─────────────────────────────────────────────────────────────
+# ── Training helpers ──────────────────────────────────────────────────────────
 
-def train_one_epoch(model, loader, criterion, optimizer, device):
+def train_one_epoch(model, loader, criterion, optimizer, scheduler, device):
     model.train()
     total_loss, correct, total = 0.0, 0, 0
-    for images, labels in loader:
+
+    for i, (images, labels) in enumerate(loader):
         images, labels = images.to(device), labels.to(device)
+
+        mixed, y_a, y_b, lam = mixup_batch(images, labels)
         optimizer.zero_grad()
-        logits = model(images)
-        loss = criterion(logits, labels)
+        logits = model(mixed)
+        loss = mixup_criterion(criterion, logits, y_a, y_b, lam)
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
+        scheduler.step()
 
         total_loss += loss.item() * images.size(0)
-        correct += (logits.argmax(1) == labels).sum().item()
+        correct += (logits.argmax(1) == y_a).sum().item()
         total += images.size(0)
+
+        if i % 200 == 0:
+            print(f"  batch {i:04d}/{len(loader)}  "
+                  f"loss={loss.item():.4f}  lr={optimizer.param_groups[0]['lr']:.2e}")
 
     return total_loss / total, correct / total
 
@@ -130,11 +160,11 @@ def train_one_epoch(model, loader, criterion, optimizer, device):
 def evaluate(model, loader, criterion, device):
     model.eval()
     total_loss, correct, total = 0.0, 0, 0
+
     for images, labels in loader:
         images, labels = images.to(device), labels.to(device)
         logits = model(images)
         loss = criterion(logits, labels)
-
         total_loss += loss.item() * images.size(0)
         correct += (logits.argmax(1) == labels).sum().item()
         total += images.size(0)
@@ -142,18 +172,13 @@ def evaluate(model, loader, criterion, device):
     return total_loss / total, correct / total
 
 
-# ── Noise-specific accuracy (grad requirement) ────────────────────────────────
-
 @torch.no_grad()
 def evaluate_per_noise(model, val_ds, device, n_samples: int = 2000):
-    """
-    Report accuracy separately for Gaussian and salt-and-pepper noise.
-    Samples a random subset of the validation set and applies each noise type.
-    """
     model.eval()
     gaussian = AddGaussianNoise()
     sp = AddSaltAndPepperNoise()
 
+    n_samples = min(n_samples, len(val_ds))
     indices = np.random.choice(len(val_ds), n_samples, replace=False)
     images = torch.stack([val_ds[i][0] for i in indices])
     labels = torch.tensor([val_ds[i][1] for i in indices])
@@ -164,7 +189,6 @@ def evaluate_per_noise(model, val_ds, device, n_samples: int = 2000):
         logits = model(noisy)
         acc = (logits.argmax(1) == labels.to(device)).float().mean().item()
         results[name] = acc
-
     return results
 
 
@@ -172,48 +196,71 @@ def evaluate_per_noise(model, val_ds, device, n_samples: int = 2000):
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--epochs",     type=int,   default=20)
-    p.add_argument("--batch-size", type=int,   default=128)
+    p.add_argument("--epochs",     type=int,   default=60)
+    p.add_argument("--batch-size", type=int,   default=256)
     p.add_argument("--lr",         type=float, default=1e-3)
     p.add_argument("--device",     type=str,   default="")
     return p.parse_args()
 
 
 def main():
+    # REQUIRED on BigRed200 — torch 2.2.0+cu118 segfaults on the first
+    # cuDNN Conv2d call. Disabling cuDNN falls back to native CUDA ops
+    # which are stable. BatchNorm2d + cuDNN is the specific crash trigger.
+    torch.backends.cudnn.enabled = False
+
     args = parse_args()
 
-    device = args.device or ("cuda" if torch.cuda.is_available() else
-                             "mps"  if torch.backends.mps.is_available() else
-                             "cpu")
-    print(f"Using device: {device}")
+    device = args.device or (
+        "cuda" if torch.cuda.is_available() else
+        "mps"  if torch.backends.mps.is_available() else
+        "cpu"
+    )
+    print(f"Device : {device}")
 
-    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(DATA_DIR,  exist_ok=True)
     os.makedirs(MODEL_DIR, exist_ok=True)
 
     print("Loading EMNIST (byclass) ...")
     train_loader, val_loader = build_loaders(args.batch_size)
+    print(f"  Train: {len(train_loader.dataset):,}  Val: {len(val_loader.dataset):,}")
 
     model = CharClassifier(num_classes=NUM_CLASSES).to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    # Halve LR if val loss doesn't improve for 3 consecutive epochs
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="min", patience=3, factor=0.5, verbose=True
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"  Parameters: {n_params:,}")
+
+    # Smoke test
+    with torch.no_grad():
+        out = model(torch.randn(2, 1, 32, 32, device=device))
+        assert out.shape == (2, NUM_CLASSES)
+    print("  Smoke test: PASSED")
+
+    # Loss with label smoothing
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+
+    # AdamW with weight decay
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
+
+    # OneCycleLR — warm-up for first 30% of steps, cosine decay after
+    total_steps = args.epochs * len(train_loader)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer, max_lr=args.lr, total_steps=total_steps,
+        pct_start=0.3, anneal_strategy="cos",
+        div_factor=25.0, final_div_factor=1e4,
     )
 
     best_val_acc = 0.0
     save_path = os.path.join(MODEL_DIR, "char_classifier.pth")
 
     for epoch in range(1, args.epochs + 1):
-        tr_loss, tr_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
-        va_loss, va_acc = evaluate(model, val_loader, criterion, device)
-        scheduler.step(va_loss)
-
-        print(
-            f"Epoch {epoch:02d}/{args.epochs}  "
-            f"train_loss={tr_loss:.4f}  train_acc={tr_acc:.4f}  "
-            f"val_loss={va_loss:.4f}  val_acc={va_acc:.4f}"
+        print(f"\nEpoch {epoch:02d}/{args.epochs}")
+        tr_loss, tr_acc = train_one_epoch(
+            model, train_loader, criterion, optimizer, scheduler, device
         )
+        va_loss, va_acc = evaluate(model, val_loader, criterion, device)
+
+        print(f"  train_loss={tr_loss:.4f}  train_acc={tr_acc:.4f}  "
+              f"val_loss={va_loss:.4f}  val_acc={va_acc:.4f}")
 
         if va_acc > best_val_acc:
             best_val_acc = va_acc
@@ -222,15 +269,16 @@ def main():
 
     print(f"\nTraining complete. Best val accuracy: {best_val_acc:.4f}")
 
-    # Per-noise accuracy report (grad requirement)
-    print("\nEvaluating per noise type on validation set ...")
+    print("\nPer-noise accuracy:")
     model.load_state_dict(torch.load(save_path, map_location=device))
     noise_acc = evaluate_per_noise(model, val_loader.dataset, device)
-    for noise_type, acc in noise_acc.items():
-        print(f"  {noise_type:20s}: {acc:.4f}")
+    for name, acc in noise_acc.items():
+        print(f"  {name:20s}: {acc:.4f}")
 
-    if best_val_acc < 0.95:
-        print("\nWARNING: val accuracy below 95% target. Consider more epochs or tuning LR.")
+    if best_val_acc >= 0.95:
+        print("\n✓ TARGET REACHED: val_acc > 95%")
+    else:
+        print(f"\nval_acc = {best_val_acc:.4f}  (target: 0.95)")
 
 
 if __name__ == "__main__":

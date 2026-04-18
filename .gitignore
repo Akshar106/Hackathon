@@ -39,3 +39,4 @@ data/
 *.log
 *.tmp
 runs/
+logs/
