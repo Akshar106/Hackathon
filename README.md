@@ -10,6 +10,8 @@ Noisy Image → [Stage 1: OCR CNN] → Text → [Stage 2: Adaptive Huffman] → 
 
 ## Architecture Overview
 
+![CNN Architecture](docs/architecture.png)
+
 ### Stage 1 — OCR Microservice (ResVGG CNN)
 
 A 4-block residual VGG-style CNN trained on EMNIST (byclass split, 62 classes: 0–9, A–Z, a–z).
@@ -117,10 +119,19 @@ No frequency table needs to be transmitted with the compressed data
 **Results:**
 | Metric | Value |
 |--------|-------|
-| Best val accuracy | **87.86%** |
-| Gaussian noise accuracy | 55.85% |
-| Salt & pepper noise accuracy | 40.95% |
+| Best val accuracy (clean) | **87.86%** |
 | Training time | ~90 min on A100 |
+
+**Per-noise accuracy (3,000 validation samples, denoiser ON):**
+| Noise condition | Accuracy |
+|----------------|----------|
+| Clean (no noise) | **87.97%** |
+| Gaussian (σ = 0.10) | **87.27%** |
+| Salt & Pepper (d = 0.05) | **87.47%** |
+| Gaussian (σ = 0.15) | **86.83%** |
+| Salt & Pepper (d = 0.08) | **87.80%** |
+
+> The model maintains near-identical accuracy (~87%) across all noise conditions when the DenoisingUNet is enabled — demonstrating robust noise handling.
 
 **BigRed200 note:** `torch.backends.cudnn.enabled = False` is required — torch 2.2.0+cu118 segfaults on the first cuDNN Conv2d call on A100. All ops still run on GPU via raw CUDA kernels.
 
@@ -301,3 +312,26 @@ The pipeline handles two noise profiles on scanned documents:
 | **Salt & Pepper** | Random pixel corruption (2–8% density) | MedianFilter before Otsu thresholding |
 
 Both noise types are applied during training via `RandomNoise` augmentation and evaluated separately using `evaluate_per_noise()`.
+
+### DenoisingUNet Performance
+
+The DenoisingUNet (U-Net, base_ch=32) was evaluated on real document degradation scenarios:
+
+| Degradation type | PSNR (dB) | SSIM |
+|-----------------|-----------|------|
+| Coffee stains | 27.40 | 0.9905 |
+| Folded sheets | 28.37 | 0.9953 |
+| Footprints | 28.08 | 0.9941 |
+| Wrinkled paper | 27.76 | 0.9935 |
+| **Overall** | **27.90** | **0.9933** |
+
+SSIM > 0.99 across all degradation types confirms near-perfect visual reconstruction. The denoiser converged in 50 epochs (MSE + SSIM loss) with train and val loss tracking closely — no overfitting.
+
+### Impact of Denoiser on OCR Accuracy
+
+| Mode | Gaussian (σ=0.10) | Salt & Pepper (d=0.05) |
+|------|-------------------|------------------------|
+| **Denoiser OFF** | 55.85% | 40.95% |
+| **Denoiser ON** | **87.27%** | **87.47%** |
+
+Enabling the DenoisingUNet recovers **+31% accuracy on Gaussian** and **+46% on salt-and-pepper** noise — making it the most impactful component in the pipeline for real-world noisy documents.
