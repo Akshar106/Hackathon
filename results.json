@@ -1,0 +1,251 @@
+{
+  "num_images": 15,
+  "avg_ocr_latency_ms": 691.56,
+  "avg_compress_latency_ms": 0.17,
+  "avg_total_latency_ms": 691.73,
+  "avg_compression_ratio": 2.1482,
+  "avg_entropy": 3.7078,
+  "avg_encoding_efficiency": 0.9916,
+  "per_image": [
+    {
+      "image": "test_images/clean_clean.png",
+      "ocr_text": "n53SjPPIIPIUJSnPUPUIiirJYIIFPJSI5PiYnIIDDnPJJUJISY5PnnPPnnnPianJJnYPPIYPaPnIUNIaaIYPaPnJrNarPWJJnPnSINLUIaFStaIWraPFPnSINLaUa",
+      "num_chars": 125,
+      "ocr_latency_ms": 615.11,
+      "compress_latency_ms": 0.19,
+      "total_latency_ms": 615.3,
+      "compression": {
+        "original_bytes": 125,
+        "compressed_bytes": 59,
+        "compression_ratio": 2.1322,
+        "entropy_bits_per_symbol": 3.705,
+        "avg_bits_per_symbol": 3.752,
+        "encoding_efficiency": 0.9875
+      }
+    },
+    {
+      "image": "test_images/clean_coffee.png",
+      "ocr_text": "n53SjPPIIPIUJSnPUPUIiirJYIIFPJSI5PjYnIIDDnPJJUJISY5PnnPPnnnPianJJnYPPIYPaPnIUNIaaIYPaPnJrNarPWJJnPnSINLUIaFStaIWraPFPnSINLaUa",
+      "num_chars": 125,
+      "ocr_latency_ms": 635.58,
+      "compress_latency_ms": 0.17,
+      "total_latency_ms": 635.75,
+      "compression": {
+        "original_bytes": 125,
+        "compressed_bytes": 59,
+        "compression_ratio": 2.1277,
+        "entropy_bits_per_symbol": 3.715,
+        "avg_bits_per_symbol": 3.76,
+        "encoding_efficiency": 0.988
+      }
+    },
+    {
+      "image": "test_images/clean_combined.png",
+      "ocr_text": "n53SjPPWIPIUPSnPUPUIiiWJYIIFSJPI5PijnIIDDnPJJYJSj5PnnPPnnnPtanJJnjPPIYPaPnIUWIaa3YDaPnJrWarSWJJnPnSINLUIaFStaeWWPPFSnSINLaUP",
+      "num_chars": 124,
+      "ocr_latency_ms": 752.25,
+      "compress_latency_ms": 0.19,
+      "total_latency_ms": 752.44,
+      "compression": {
+        "original_bytes": 124,
+        "compressed_bytes": 61,
+        "compression_ratio": 2.0581,
+        "entropy_bits_per_symbol": 3.8423,
+        "avg_bits_per_symbol": 3.8871,
+        "encoding_efficiency": 0.9885
+      }
+    },
+    {
+      "image": "test_images/clean_gaussian.png",
+      "ocr_text": "n53SjPPIIPIUJSnPUPUIiirDYIIFPJSI5PFYnIIDDMPJJYJISY5PnnMPnnnPjanJJnYPPIYPaPnIUWIaa3YPaPnJrWaWSWJJnSnSIWLUIaFCtaaWWaPFPnSIWLPUa",
+      "num_chars": 125,
+      "ocr_latency_ms": 768.09,
+      "compress_latency_ms": 0.16,
+      "total_latency_ms": 768.26,
+      "compression": {
+        "original_bytes": 125,
+        "compressed_bytes": 61,
+        "compression_ratio": 2.079,
+        "entropy_bits_per_symbol": 3.8219,
+        "avg_bits_per_symbol": 3.848,
+        "encoding_efficiency": 0.9932
+      }
+    },
+    {
+      "image": "test_images/clean_salt_pepper.png",
+      "ocr_text": "m53SYPP4IPIYJSnPYPUIiJiWJYIIFSPPI5PjjnIIPSjPJJYJSY5WnMPPnInPianJJnYhP3YPaPnIYNIIaaIYDaPnJWWaNSWJJnPnIIPLUJPFSIaIWWaSFPnaIWlPYa",
+      "num_chars": 126,
+      "ocr_latency_ms": 739.59,
+      "compress_latency_ms": 0.17,
+      "total_latency_ms": 739.76,
+      "compression": {
+        "original_bytes": 126,
+        "compressed_bytes": 61,
+        "compression_ratio": 2.0913,
+        "entropy_bits_per_symbol": 3.7749,
+        "avg_bits_per_symbol": 3.8254,
+        "encoding_efficiency": 0.9868
+      }
+    },
+    {
+      "image": "test_images/letter_clean.png",
+      "ocr_text": "JPSMJMJPI5JP5nGInYnY5anSPS5MYMiSJniPPnY5aJPIPPJrPPMSnIS5PSJJPPPgnU5PSnPJPIj5aPPiJUPIJrPSJPJnY5anIPaJnPgnnS5PPJPaPnJnSPPnYS5JJPJnnPaSnPJIIJiSM",
+      "num_chars": 141,
+      "ocr_latency_ms": 756.93,
+      "compress_latency_ms": 0.14,
+      "total_latency_ms": 757.08,
+      "compression": {
+        "original_bytes": 141,
+        "compressed_bytes": 59,
+        "compression_ratio": 2.4103,
+        "entropy_bits_per_symbol": 3.295,
+        "avg_bits_per_symbol": 3.3191,
+        "encoding_efficiency": 0.9927
+      }
+    },
+    {
+      "image": "test_images/letter_coffee.png",
+      "ocr_text": "JPSMJMJPI5JP5nGInYnY5anSPS5MYMiSJniPPnY5aJPIPPJrPPMSnIS5PSJJPPPgnU5PSnPJPIj5aPPiJUPIJrPSJPJnY5anIPaJnPgnnS5PPJPaPnJnSPPnYS5JJPJnnPaSnPJIIJiSM",
+      "num_chars": 141,
+      "ocr_latency_ms": 689.23,
+      "compress_latency_ms": 0.13,
+      "total_latency_ms": 689.36,
+      "compression": {
+        "original_bytes": 141,
+        "compressed_bytes": 59,
+        "compression_ratio": 2.4103,
+        "entropy_bits_per_symbol": 3.295,
+        "avg_bits_per_symbol": 3.3191,
+        "encoding_efficiency": 0.9927
+      }
+    },
+    {
+      "image": "test_images/letter_combined.png",
+      "ocr_text": "JPSnJnJPI5JP5ngInYnY5anSPS5MYniSJniPPnY5aJPIPPJrPPMSnIS5PaJPPPPgnU5PSnPJPIj5aPPiJUPIJrPSJPJnY5anIPaJnPgnna5DJJPaPnJnSPPnYS5WJPJnnPaSMPJIIJESM",
+      "num_chars": 141,
+      "ocr_latency_ms": 706.66,
+      "compress_latency_ms": 0.14,
+      "total_latency_ms": 706.81,
+      "compression": {
+        "original_bytes": 141,
+        "compressed_bytes": 60,
+        "compression_ratio": 2.3549,
+        "entropy_bits_per_symbol": 3.3668,
+        "avg_bits_per_symbol": 3.3972,
+        "encoding_efficiency": 0.9911
+      }
+    },
+    {
+      "image": "test_images/letter_gaussian.png",
+      "ocr_text": "JPSMJMPPI5JP5nq3MYnY5anSPS5MYnESJniPPnY5aJPIPPJrPPMSnIS5PIJJPPPgMU5PSnPJPFj5aSPiJYPIJrPSCPPMY5anIPaJnPJSMnS5PJJPaPnJMSPPnjS5CJPJnnPaSnPJIIJiaM",
+      "num_chars": 142,
+      "ocr_latency_ms": 657.19,
+      "compress_latency_ms": 0.15,
+      "total_latency_ms": 657.34,
+      "compression": {
+        "original_bytes": 142,
+        "compressed_bytes": 62,
+        "compression_ratio": 2.2903,
+        "entropy_bits_per_symbol": 3.4719,
+        "avg_bits_per_symbol": 3.493,
+        "encoding_efficiency": 0.994
+      }
+    },
+    {
+      "image": "test_images/letter_salt_pepper.png",
+      "ocr_text": "rPSMJMJPIiJP5IY3nYnY5anSPSiMYMlSJMYPnY5arPIPDJraDMPMIP5PSJJPPPYPnY5PSnPWPIj5aPPFdUPIJrPaWCJnY5anFPaJnPFPMnS5PIJFaPnJnSPPnYP5JJPCnnPaaMPWjTJiSM",
+      "num_chars": 142,
+      "ocr_latency_ms": 704.78,
+      "compress_latency_ms": 0.16,
+      "total_latency_ms": 704.93,
+      "compression": {
+        "original_bytes": 142,
+        "compressed_bytes": 67,
+        "compression_ratio": 2.1273,
+        "entropy_bits_per_symbol": 3.7337,
+        "avg_bits_per_symbol": 3.7606,
+        "encoding_efficiency": 0.9928
+      }
+    },
+    {
+      "image": "test_images/mixed_chars_clean.png",
+      "ocr_text": "GrJMJPInPI7IIPJaaWFqtIYSqPPMaIYtri5PgnCnP3tJYPUJIrPLaaIPIIPJSnIDUSYIFIPaJIPTDMPI5JPtPJiJJP3PnFIPJSaPPSnPaLrPSnJtrIaiJYaI",
+      "num_chars": 120,
+      "ocr_latency_ms": 634.81,
+      "compress_latency_ms": 0.16,
+      "total_latency_ms": 634.97,
+      "compression": {
+        "original_bytes": 120,
+        "compressed_bytes": 59,
+        "compression_ratio": 2.0382,
+        "entropy_bits_per_symbol": 3.8912,
+        "avg_bits_per_symbol": 3.925,
+        "encoding_efficiency": 0.9914
+      }
+    },
+    {
+      "image": "test_images/mixed_chars_coffee.png",
+      "ocr_text": "GrJMJPInPI7IIPJaaWFqtIYSqPPMaIYtri5PgnCnP3tJYPUJIrPLaaIPIIPJSnIDUSYIFIPaJIPTDMPI5JPtPJiJJP3PnFIPJSaPPSnPaLrPSnJtrIaiJYaI",
+      "num_chars": 120,
+      "ocr_latency_ms": 725.74,
+      "compress_latency_ms": 0.23,
+      "total_latency_ms": 725.97,
+      "compression": {
+        "original_bytes": 120,
+        "compressed_bytes": 59,
+        "compression_ratio": 2.0382,
+        "entropy_bits_per_symbol": 3.8912,
+        "avg_bits_per_symbol": 3.925,
+        "encoding_efficiency": 0.9914
+      }
+    },
+    {
+      "image": "test_images/mixed_chars_combined.png",
+      "ocr_text": "IJrPMJPInPI7IIPJaaWFqtIYSqPPMaIYtri5PJanCnP3tJYSUJIrPlPaIPIIP3PnIDYPYIFIPaJIPTDMPI5JStPPiJJP3PnFIPPSaPPPnPaLISSnJtrTaiJYaI",
+      "num_chars": 122,
+      "ocr_latency_ms": 627.85,
+      "compress_latency_ms": 0.16,
+      "total_latency_ms": 628.01,
+      "compression": {
+        "original_bytes": 122,
+        "compressed_bytes": 59,
+        "compression_ratio": 2.0899,
+        "entropy_bits_per_symbol": 3.7944,
+        "avg_bits_per_symbol": 3.8279,
+        "encoding_efficiency": 0.9913
+      }
+    },
+    {
+      "image": "test_images/mixed_chars_gaussian.png",
+      "ocr_text": "GrPMJPInPTYIIPJaaWFqtIYaPPDPMaIYTri5PgMCnP3tJYSUJIrPLPaIPIIPJSMIDYSYIFIPaJYPTJMPJ5MPtPJjJJP3PnFIPJSdWPPnPaLrPPnJtrTaiJUaI",
+      "num_chars": 121,
+      "ocr_latency_ms": 689.09,
+      "compress_latency_ms": 0.17,
+      "total_latency_ms": 689.26,
+      "compression": {
+        "original_bytes": 121,
+        "compressed_bytes": 61,
+        "compression_ratio": 2.0125,
+        "entropy_bits_per_symbol": 3.9562,
+        "avg_bits_per_symbol": 3.9752,
+        "encoding_efficiency": 0.9952
+      }
+    },
+    {
+      "image": "test_images/mixed_chars_salt_pepper.png",
+      "ocr_text": "GCJMJPInRIIPJaaWFqtIWSgFPmaIYjtrj5PJahJnJ3tJYSIjJUrPLaaIPIISJPMIDYPjaFFaaJIhTJMSI5JPtJGJPSIPMFtPPSaWPSMParIPPMJtlIaiJYaI",
+      "num_chars": 120,
+      "ocr_latency_ms": 670.54,
+      "compress_latency_ms": 0.17,
+      "total_latency_ms": 670.71,
+      "compression": {
+        "original_bytes": 120,
+        "compressed_bytes": 62,
+        "compression_ratio": 1.9632,
+        "entropy_bits_per_symbol": 4.062,
+        "avg_bits_per_symbol": 4.075,
+        "encoding_efficiency": 0.9968
+      }
+    }
+  ]
+}

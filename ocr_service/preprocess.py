@@ -18,7 +18,7 @@ from typing import List, Tuple, Optional
 import numpy as np
 import torch
 import torchvision.transforms as T
-from PIL import Image
+from PIL import Image, ImageFilter
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from ocr_service.model import DenoisingUNet
@@ -200,6 +200,12 @@ def preprocess_image(
 
     if denoise:
         gray = denoise_array(gray)
+
+    # Median filter removes isolated salt-and-pepper noise pixels before
+    # thresholding — prevents the projection profile from seeing noise as text
+    gray_pil = Image.fromarray(gray, mode="L")
+    gray_pil = gray_pil.filter(ImageFilter.MedianFilter(size=3))
+    gray = np.array(gray_pil, dtype=np.uint8)
 
     binary = otsu_threshold(gray)
     patches = segment_characters(binary)

@@ -28,6 +28,7 @@ app = FastAPI(title="Compression Service", version="1.0")
 class DecompressRequest(BaseModel):
     bitstring: str
     original_length: int
+    freqs: dict          # byte-frequency table returned by /compress
     pad_bits: int = 0
 
 
@@ -66,6 +67,7 @@ async def compress_file(file: UploadFile = File(...)):
         "packed_b64": payload["packed_b64"],
         "pad_bits": payload["pad_bits"],
         "original_length": payload["original_length"],
+        "freqs": payload["freqs"],
     }
 
 
@@ -80,6 +82,7 @@ async def decompress_payload(req: DecompressRequest):
         recovered = decompress({
             "bitstring": req.bitstring,
             "original_length": req.original_length,
+            "freqs": req.freqs,
         })
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Decompression failed: {exc}")
