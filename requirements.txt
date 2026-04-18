@@ -8,3 +8,6 @@ uvicorn
 python-multipart
 opencv-python
 scipy
+streamlit
+requests
+streamlit

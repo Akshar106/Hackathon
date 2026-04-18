@@ -2,63 +2,71 @@ import torch
 import torch.nn as nn
 
 
+class _ResVGGBlock(nn.Module):
+    """
+    VGG-style double-conv block with a residual skip connection.
+
+    Conv → BN → ReLU → Conv → BN → (+skip) → ReLU → MaxPool → Dropout
+
+    The 1×1 skip projection aligns channels when in_ch != out_ch.
+    Residual connections stabilise gradients across 4 blocks and allow
+    the model to learn incremental refinements rather than full mappings,
+    which is important for the visually-similar 62-class EMNIST task.
+    """
+
+    def __init__(self, in_ch: int, out_ch: int, dropout: float = 0.15):
+        super().__init__()
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(),
+        )
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_ch),
+        )
+        # 1×1 projection to match channels; identity when in_ch == out_ch
+        self.skip = nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, kernel_size=1, bias=False),
+            nn.BatchNorm2d(out_ch),
+        ) if in_ch != out_ch else nn.Identity()
+
+        self.act  = nn.ReLU()
+        self.pool = nn.MaxPool2d(2)
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = self.conv2(self.conv1(x))
+        out = self.act(out + self.skip(x))   # residual add before activation
+        return self.drop(self.pool(out))
+
+
 class CharClassifier(nn.Module):
     """
-    VGG-style CNN for 62-class EMNIST character classification.
+    4-block ResVGG for 62-class EMNIST character classification.
 
-    Architecture (32×32 input):
-      Block1: Conv(1→64)  × 2, BN, ReLU, MaxPool2d → 16×16
-      Block2: Conv(64→128)× 2, BN, ReLU, MaxPool2d →  8×8
-      Block3: Conv(128→256)×2, BN, ReLU, MaxPool2d →  4×4
-      GAP   : 256-dim vector
-      Head  : 256 → 512 → num_classes
-
-    Wider channels (64/128/256 vs old 32/64/128) give more capacity
-    for the 62 visually-similar EMNIST classes while keeping the proven
-    VGG-style structure that runs stably on BigRed200 with cudnn disabled.
+    Architecture (32×32 grayscale input):
+      Block1 : ResVGGBlock( 1 →  64)  32×32 → 16×16
+      Block2 : ResVGGBlock(64 → 128)  16×16 →  8×8
+      Block3 : ResVGGBlock(128→ 256)   8×8  →  4×4
+      Block4 : ResVGGBlock(256→ 512)   4×4  →  2×2
+      GAP    : AdaptiveAvgPool2d → 512-dim vector
+      Head   : Linear(512→512) → ReLU → Dropout(0.5) → Linear(512→62)
     """
 
     def __init__(self, num_classes: int = 62):
         super().__init__()
 
-        self.block1 = nn.Sequential(
-            nn.Conv2d(1, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Dropout(0.25),
-        )
-
-        self.block2 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Dropout(0.25),
-        )
-
-        self.block3 = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Dropout(0.25),
-        )
+        self.block1 = _ResVGGBlock(  1,  64, dropout=0.10)   # 32×32 → 16×16
+        self.block2 = _ResVGGBlock( 64, 128, dropout=0.10)   # 16×16 →  8×8
+        self.block3 = _ResVGGBlock(128, 256, dropout=0.15)   #  8×8  →  4×4
+        self.block4 = _ResVGGBlock(256, 512, dropout=0.15)   #  4×4  →  2×2
 
         self.gap = nn.AdaptiveAvgPool2d(1)
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(256, 512),
+            nn.Linear(512, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(512, num_classes),
@@ -68,6 +76,7 @@ class CharClassifier(nn.Module):
         x = self.block1(x)
         x = self.block2(x)
         x = self.block3(x)
+        x = self.block4(x)
         x = self.gap(x)
         return self.classifier(x)
 

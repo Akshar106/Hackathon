@@ -28,7 +28,7 @@ app = FastAPI(title="Compression Service", version="1.0")
 class DecompressRequest(BaseModel):
     bitstring: str
     original_length: int
-    freqs: dict          # byte-frequency table returned by /compress
+    freqs: dict = {}     # not used by adaptive decoder; kept for API compatibility
     pad_bits: int = 0
 
 
@@ -36,7 +36,7 @@ class DecompressRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "algorithm": "adaptive_huffman_fgk"}
+    return {"status": "ok", "algorithm": "adaptive_huffman"}
 
 
 @app.post("/compress")
